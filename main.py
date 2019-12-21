@@ -1,7 +1,7 @@
 from gen import *
 from random import randint
 
-n = 128
+n = 64
 a = [Var(('a',i)) for i in range(n)]
 b = [Var(('b',i)) for i in range(n)]
 
@@ -13,9 +13,18 @@ def show_var(x):
     print("print({})".format(",".join(str(v) for v in x)))
 
 header = """
+#include<x86intrin.h>
 #include<immintrin.h>
 #include<stdlib.h>
 #include<stdio.h>
+#include<stdint.h>
+"""
+
+timing_function="""
+ inline uint64_t readTSCp() {
+     unsigned dummy;
+     return __rdtscp(&dummy);
+  }
 """
 
 def show_output256(c):
@@ -48,10 +57,11 @@ set_input="""
 
 """.format(N=n*4)
 
-c = schoolbook(a,b)
+c = polymul(a,b,["k","k","k","k","k","k","s"])
 
 print(header)
 print(MUL_MACRO)
+print(timing_function)
 print(body)
 print(set_input)
 print("__m256d {};".format(",".join(str(v) for v in Var.all_vars)))
@@ -59,7 +69,10 @@ print("__m256d {};".format(",".join(str(v) for v in Var.all_vars)))
 #def_input(b)
 #show_var(a)
 #show_var(b)
+print("int64_t ts=readTSCp();")
 print(C.code)
+print("int64_t te=readTSCp();")
+print('printf("cycle = %d\\n",int(te-ts));')
 show_output256(c)
 
 #show_var(c)
