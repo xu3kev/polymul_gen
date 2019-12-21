@@ -1,11 +1,16 @@
+class Code:
+    code=""
+    
+C = Code()
+
 class Var:
     counter = 0
-    all_var = set()
+    all_vars = set()
 
     def __init__(self, load_input = None):
         self.id = self.new_id()
         self.load_input = load_input
-        self.all_var.add(self)
+        self.all_vars.add(self)
 
     def __repr__(self):
         return "v"+str(self.id)
@@ -17,17 +22,19 @@ class Var:
         return id 
     
 def load(x):
-    if x.load_input:
-        pass
+    for v in x:
+        if v.load_input is not None:
+            C.code+=("{} = _mm256_load_pd({}+4*{});\n".format(v,v.load_input[0],v.load_input[1]))
     
 def p(instr, dst, src1, src2):
-    print("{} = {}({},{});".format(str(dst), instr, str(src1), str(src2)))
+    C.code+=("{} = {}({},{});\n".format(str(dst), instr, str(src1), str(src2)))
 
 def mul(a,b):
     load(a)
     load(b)
     c = [Var(),Var()]
-    p("_mm256_mul_pd",c[i],a[i],b[i])
+    C.code+=("MUL256({},{},{},{});\n".format(c[0],c[1],a[0],b[0]))
+    
     #print("{}={}*{}".format(c[0],a[0],b[0]))
     #print("{}=0".format(c[1]))
     return c
@@ -108,4 +115,41 @@ def karatsuba(a,b):
     elif n==1:
         c = mul(a,b)
         return c
+
+
+MUL_MACRO="""#define MUL256(e0,e1,a,b) \
+    {__m256d d;\
+    __m256d f;\
+    __m256d g;\
+    __m256d c;\
+    e0 = _mm256_setzero_si256();\
+    e1 = _mm256_setzero_si256();\
+    __m256i mask;\
+\
+    c = _mm256_permutex_epi64(a, _MM_SHUFFLE(0,0,0,0));\
+    d = _mm256_mul_pd(b,c);\
+    e0 = _mm256_add_pd(e0,d);\
+\
+    c = _mm256_permutex_epi64(a, _MM_SHUFFLE(1,1,1,1));\
+    g = _mm256_permutex_epi64(b, _MM_SHUFFLE(2,1,0,3));\
+    d = _mm256_mul_pd(g,c);\
+    mask =_mm256_setr_epi32(0,0,0xFFFFFFFF,0xFFFFFFFF,0xFFFFFFFF,0xFFFFFFFF,0xFFFFFFFF,0xFFFFFFFF);\
+    e0 = _mm256_add_pd(e0,((__m256i)d)&mask);\
+    e1 = _mm256_add_pd(e1,((__m256i)d)&(~mask));\
+\
+    c = _mm256_permutex_epi64(a, _MM_SHUFFLE(2,2,2,2));\
+    g = _mm256_permutex_epi64(b, _MM_SHUFFLE(1,0,3,2));\
+    d = _mm256_mul_pd(g,c);\
+    mask =_mm256_setr_epi32(0,0,0,0,0xFFFFFFFF,0xFFFFFFFF,0xFFFFFFFF,0xFFFFFFFF);\
+    e0 = _mm256_add_pd(e0,((__m256i)d)&mask);\
+    e1 = _mm256_add_pd(e1,((__m256i)d)&(~mask));\
+\
+    c = _mm256_permutex_epi64(a, _MM_SHUFFLE(3,3,3,3));\
+    g = _mm256_permutex_epi64(b, _MM_SHUFFLE(0,3,2,1));\
+    d = _mm256_mul_pd(g,c);\
+    mask =_mm256_setr_epi32(0,0,0,0,0,0,0xFFFFFFFF,0xFFFFFFFF);\
+    e0 = _mm256_add_pd(e0,((__m256i)d)&mask);\
+    e1 = _mm256_add_pd(e1,((__m256i)d)&(~mask));\
+    }
+"""
 
