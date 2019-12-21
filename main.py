@@ -1,9 +1,9 @@
 from gen import *
 from random import randint
 
-n = 8
-a = [Var() for i in range(n)]
-b = [Var() for i in range(n)]
+n = 128
+a = [Var(('a',i)) for i in range(n)]
+b = [Var(('b',i)) for i in range(n)]
 
 def def_input(x):
     for v in x:
@@ -12,12 +12,55 @@ def def_input(x):
 def show_var(x):
     print("print({})".format(",".join(str(v) for v in x)))
 
+header = """
+#include<immintrin.h>
+#include<stdlib.h>
+#include<stdio.h>
+"""
 
-def_input(a)
-def_input(b)
-show_var(a)
-show_var(b)
+def show_output256(c):
+    print("__attribute__ ((aligned (32))) double output[{}];".format(len(c)*4))
+    for i,v in enumerate(c):
+        print("_mm256_store_pd(output+{}, {});".format(str(4*i),v))
+    
+    print("""for(int i=0;i<{};++i) 
+    printf(" %f",output[i]);
+    printf("\\n");
+    """.format(len(c)*4))
+
+
+body="""
+int main(){
+"""
+set_input="""
+    __attribute__ ((aligned (32))) double a[{N}];
+    __attribute__ ((aligned (32))) double b[{N}];
+    for(int i=0;i<{N};++i){{
+        a[i] = rand()%10;
+        printf(" %f", a[i]);
+    }}
+    printf("\\n");
+    for(int i=0;i<{N};++i){{
+        b[i] = rand()%10;
+        printf(" %f", b[i]);
+    }}
+    printf("\\n");
+
+""".format(N=n*4)
+
 c = schoolbook(a,b)
-show_var(c)
 
+print(header)
+print(MUL_MACRO)
+print(body)
+print(set_input)
+print("__m256d {};".format(",".join(str(v) for v in Var.all_vars)))
+#def_input(a)
+#def_input(b)
+#show_var(a)
+#show_var(b)
+print(C.code)
+show_output256(c)
 
+#show_var(c)
+print("}")
